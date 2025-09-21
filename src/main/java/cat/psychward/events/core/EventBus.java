@@ -18,7 +18,7 @@ import java.util.Objects;
 public final class EventBus {
 
     private final List<ListenerWrapper<?>> executables = new ArrayList<>();
-    private ListenerWrapper<?>[] cache;
+    private ListenerWrapper<?>[] cache = new ListenerWrapper[0];
 
     public <U extends Event> void subscribe(final Object object, final Class<U> eventClass, final Listener<U> listener, final int priority) {
         executables.add(new ListenerWrapper<>(eventClass, listener, object, priority));
