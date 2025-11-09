@@ -9,7 +9,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.pvpcafe-client:eventbus:1.0")
+    implementation("com.github.pvpcafe-client:eventbus:1.0.2")
 }
 ```
 
