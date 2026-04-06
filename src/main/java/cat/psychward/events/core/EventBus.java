@@ -31,8 +31,8 @@ public final class EventBus {
         subscribe(object, eventClass, listener, 0);
     }
 
-    @SuppressWarnings("unchecked")
-    public <U extends Event> void subscribe(final Object object) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void subscribe(final Object object) {
         for (final Field field : object.getClass().getDeclaredFields()) {
             final Listen listen = field.getDeclaredAnnotation(Listen.class);
             if (listen == null || !field.getType().isAssignableFrom(Listener.class)) continue;
@@ -40,8 +40,8 @@ public final class EventBus {
             if (field.getGenericType() instanceof final ParameterizedType type) {
                 try {
                     field.setAccessible(true);
-                    final Listener<U> listener = (Listener<U>) field.get(object);
-                    executables.add(new ListenerWrapper<>((Class<U>) type.getActualTypeArguments()[0], listener, object, listen.value()));
+                    final Listener listener = (Listener) field.get(object);
+                    executables.add(new ListenerWrapper<>((Class) type.getActualTypeArguments()[0], listener, object, listen.value()));
                 } catch (final Exception ignored) {}
             }
         }
