@@ -5,26 +5,24 @@
 package cat.psychward.events.core;
 
 import cat.psychward.events.annotations.Listen;
-import cat.psychward.events.api.event.Event;
 import cat.psychward.events.api.Listener;
+import cat.psychward.events.api.event.Event;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class EventBus {
 
-    private final List<ListenerWrapper<?>> executables = new ArrayList<>();
-    private ListenerWrapper<?>[] cache = new ListenerWrapper[0];
+    private final Map<Class<? extends Event>, ListenerContainer<?>> executables = new ConcurrentHashMap<>();
+    private ListenerContainer<?>[] cache = new ListenerContainer[0];
 
     public <U extends Event> void subscribe(final Object object, final Class<U> eventClass, final Listener<U> listener, final int priority) {
-        executables.add(new ListenerWrapper<>(eventClass, listener, object, priority));
-        executables.sort(Comparator.comparingInt(ListenerWrapper::getPriority));
+        this.executables.putIfAbsent(eventClass, new ListenerContainer<>(eventClass));
+        this.cache = this.executables.values().toArray(new ListenerContainer<?>[0]);
 
-        this.cache = executables.toArray(new ListenerWrapper<?>[0]);
+        this.executables.get(eventClass).subscribe(object, listener, priority);
     }
 
     public <U extends Event> void subscribe(final Object object, final Class<U> eventClass, final Listener<U> listener) {
@@ -40,26 +38,32 @@ public final class EventBus {
             if (field.getGenericType() instanceof final ParameterizedType type) {
                 try {
                     field.setAccessible(true);
+                    var clazz = (Class) type.getActualTypeArguments()[0];
+                    this.executables.putIfAbsent(clazz, new ListenerContainer<>(clazz));
+                    this.cache = this.executables.values().toArray(new ListenerContainer<?>[0]);
+
                     final Listener listener = (Listener) field.get(object);
-                    executables.add(new ListenerWrapper<>((Class) type.getActualTypeArguments()[0], listener, object, listen.value()));
-                } catch (final Exception ignored) {}
+                    this.executables.get(clazz).subscribe(object, listener, listen.value());
+                } catch (final Exception ignored) {
+                }
             }
         }
-        executables.sort(Comparator.comparingInt(ListenerWrapper::getPriority));
-
-        this.cache = executables.toArray(new ListenerWrapper<?>[0]);
     }
 
     public void unsubscribe(final Object object) {
-        executables.removeIf(e -> Objects.equals(object, e.getOwner()));
+        for (ListenerContainer<?> container : this.cache)
+            container.unsubscribeAll(object);
+    }
 
-        this.cache = executables.toArray(new ListenerWrapper<?>[0]);
+    public <T extends Event> void unsubscribe(final Object object, final Listener<T> listener) {
+        for (ListenerContainer<?> container : this.cache)
+            container.unsubscribe(object, listener);
     }
 
     public <U extends Event> U post(final U event) {
-        final ListenerWrapper<?>[] array = this.cache;
-        for (ListenerWrapper<?> listenerWrapper : array)
-            listenerWrapper.onEvent(event);
+        final ListenerContainer<?>[] array = this.cache;
+        for (ListenerContainer<?> container : array)
+            container.post(event);
         return event;
     }
 
