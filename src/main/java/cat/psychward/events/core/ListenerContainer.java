@@ -58,7 +58,7 @@ public final class ListenerContainer<T extends Event> {
 
     private void updateListeners() {
         this.listeners = this.ownerToListeners.values()
-                .stream().flatMap(list -> Stream.of(list.toArray(Listener[]::new)))
+                .stream().flatMap(list -> Stream.of(list.toArray(new Listener[0])))
                 .sorted(Comparator.comparingInt(priorityMap::get))
                 .toArray(Listener[]::new);
     }

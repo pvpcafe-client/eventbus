@@ -10,6 +10,10 @@ import cat.psychward.events.api.event.Event;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,14 +35,15 @@ public final class EventBus {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void subscribe(final Object object) {
-        for (final Field field : object.getClass().getDeclaredFields()) {
+        for (final Field field : walkFields(object.getClass())) {
             final Listen listen = field.getDeclaredAnnotation(Listen.class);
             if (listen == null || !field.getType().isAssignableFrom(Listener.class)) continue;
 
-            if (field.getGenericType() instanceof final ParameterizedType type) {
+            final Type type = field.getGenericType();
+            if (type instanceof ParameterizedType) {
                 try {
                     field.setAccessible(true);
-                    var clazz = (Class) type.getActualTypeArguments()[0];
+                    Class clazz = (Class) ((ParameterizedType) type).getActualTypeArguments()[0];
                     this.executables.putIfAbsent(clazz, new ListenerContainer<>(clazz));
                     this.cache = this.executables.values().toArray(new ListenerContainer<?>[0]);
 
@@ -65,6 +70,15 @@ public final class EventBus {
         for (ListenerContainer<?> container : array)
             container.post(event);
         return event;
+    }
+
+    private Iterable<Field> walkFields(Class<?> clazz) {
+        final List<Field> list = new ArrayList<>();
+        while (clazz != null) {
+            list.addAll(Arrays.asList(clazz.getDeclaredFields()));
+            clazz = clazz.getSuperclass();
+        }
+        return list;
     }
 
 }
